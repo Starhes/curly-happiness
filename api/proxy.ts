@@ -81,6 +81,30 @@ export default async function handler(req: Request): Promise<Response> {
         // Set CORS headers
         responseHeaders.set('access-control-allow-origin', '*');
 
+        // Check if this is HTML content - if so, rewrite URLs in the body
+        const contentType = responseHeaders.get('content-type') || '';
+        if (contentType.includes('text/html')) {
+            let html = await proxyResponse.text();
+
+            // Rewrite absolute URLs to stay on proxy
+            const targetDomains = [
+                'https://swisstargetprediction.ch',
+                'http://swisstargetprediction.ch',
+                'https://www.swisstargetprediction.ch',
+                'http://www.swisstargetprediction.ch'
+            ];
+
+            for (const domain of targetDomains) {
+                html = html.split(domain).join(url.origin);
+            }
+
+            return new Response(html, {
+                status: proxyResponse.status,
+                statusText: proxyResponse.statusText,
+                headers: responseHeaders
+            });
+        }
+
         return new Response(proxyResponse.body, {
             status: proxyResponse.status,
             statusText: proxyResponse.statusText,
